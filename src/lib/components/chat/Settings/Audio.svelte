@@ -21,6 +21,10 @@
 
 	let voices = [];
 	let speaker = '';
+	let volume = '';
+	let speechRate = '';
+	let pitch = '';
+	let notificationsPlayback = false;
 
 	const getOpenAIVoices = () => {
 		voices = [
@@ -69,12 +73,18 @@
 		saveSettings({ speechAutoSend: speechAutoSend });
 	};
 
+	const toggleNotificationsPlayback = async () => {
+		notificationsPlayback = !notificationsPlayback;
+		saveSettings({ notificationsPlayback: notificationsPlayback });
+	};
+
 	onMount(async () => {
 		let settings = JSON.parse(localStorage.getItem('settings') ?? '{}');
 
 		conversationMode = settings.conversationMode ?? false;
 		speechAutoSend = settings.speechAutoSend ?? false;
 		responseAutoPlayback = settings.responseAutoPlayback ?? false;
+		notificationsPlayback = settings.notificationsPlayback ?? false;
 
 		STTEngine = settings?.audio?.STTEngine ?? '';
 		TTSEngine = settings?.audio?.TTSEngine ?? '';
@@ -207,6 +217,164 @@
 					type="button"
 				>
 					{#if responseAutoPlayback === true}
+						<span class="ml-2 self-center">{$i18n.t('On')}</span>
+					{:else}
+						<span class="ml-2 self-center">{$i18n.t('Off')}</span>
+					{/if}
+				</button>
+			</div>
+
+			<div class=" py-0.5 w-full justify-between">
+				<div class="flex w-full justify-between">
+					<div class=" self-center text-xs font-medium">{$i18n.t('Volume')}</div>
+
+					<button
+						class="p-1 px-3 text-xs flex rounded transition"
+						type="button"
+						on:click={() => {
+							volume = volume === '' ? 0.8 : '';
+						}}
+					>
+						{#if volume === ''}
+							<span class="ml-2 self-center"> {$i18n.t('Default')} </span>
+						{:else}
+							<span class="ml-2 self-center"> {$i18n.t('Custom')} </span>
+						{/if}
+					</button>
+				</div>
+
+				{#if volume !== ''}
+					<div class="flex mt-0.5 space-x-2">
+						<div class=" flex-1">
+							<input
+								id="steps-range"
+								type="range"
+								min="0.1"
+								max="1"
+								step="0.01"
+								bind:value={volume}
+								class="w-full h-2 rounded-lg appearance-none cursor-pointer dark:bg-gray-700"
+							/>
+						</div>
+						<div>
+							<input
+								bind:value={volume}
+								type="number"
+								class=" bg-transparent text-center w-14"
+								min="0.1"
+								max="1"
+								step="0.01"
+							/>
+						</div>
+					</div>
+				{/if}
+			</div>
+
+			<div class=" py-0.5 w-full justify-between">
+				<div class="flex w-full justify-between">
+					<div class=" self-center text-xs font-medium">{$i18n.t('Speech Rate')}</div>
+
+					<button
+						class="p-1 px-3 text-xs flex rounded transition"
+						type="button"
+						on:click={() => {
+							speechRate = speechRate === '' ? 100 : '';
+						}}
+					>
+						{#if speechRate === ''}
+							<span class="ml-2 self-center"> {$i18n.t('Default')} </span>
+						{:else}
+							<span class="ml-2 self-center"> {$i18n.t('Custom')} </span>
+						{/if}
+					</button>
+				</div>
+
+				{#if speechRate !== ''}
+					<div class="flex mt-0.5 space-x-2">
+						<div class=" flex-1">
+							<input
+								id="steps-range"
+								type="range"
+								min="1"
+								max="100"
+								step="0.01"
+								bind:value={speechRate}
+								class="w-full h-2 rounded-lg appearance-none cursor-pointer dark:bg-gray-700"
+							/>
+						</div>
+						<div>
+							<input
+								bind:value={speechRate}
+								type="number"
+								class=" bg-transparent text-center w-14"
+								min="1"
+								max="100"
+								step="0.01"
+							/>
+						</div>
+					</div>
+				{/if}
+			</div>
+
+			<div class=" py-0.5 w-full justify-between">
+				<div class="flex w-full justify-between">
+					<div class=" self-center text-xs font-medium">{$i18n.t('Pitch')}</div>
+
+					<button
+						class="p-1 px-3 text-xs flex rounded transition"
+						type="button"
+						on:click={() => {
+							pitch = pitch === '' ? 100 : '';
+						}}
+					>
+						{#if pitch === ''}
+							<span class="ml-2 self-center"> {$i18n.t('Default')} </span>
+						{:else}
+							<span class="ml-2 self-center"> {$i18n.t('Custom')} </span>
+						{/if}
+					</button>
+				</div>
+
+				{#if pitch !== ''}
+					<div class="flex mt-0.5 space-x-2">
+						<div class=" flex-1">
+							<input
+								id="steps-range"
+								type="range"
+								min="0"
+								max="100"
+								step="0.01"
+								bind:value={pitch}
+								class="w-full h-2 rounded-lg appearance-none cursor-pointer dark:bg-gray-700"
+							/>
+						</div>
+						<div>
+							<input
+								bind:value={pitch}
+								type="number"
+								class=" bg-transparent text-center w-14"
+								min="0"
+								max="100"
+								step="0.01"
+							/>
+						</div>
+					</div>
+				{/if}
+			</div>
+
+			<div class=" py-0.5 flex w-full justify-between">
+				<div class=" self-center text-xs font-medium">
+					{$i18n.t('Enable Notifications Playback')}
+				</div>
+
+				<button
+					class="p-1 px-3 text-xs flex rounded transition"
+					on:click={() => {
+						toggleNotificationsPlayback();
+					}}
+					type="button"
+				>
+					{#if notificationsPlayback === true}
 						<span class="ml-2 self-center">{$i18n.t('On')}</span>
 					{:else}
 						<span class="ml-2 self-center">{$i18n.t('Off')}</span>
