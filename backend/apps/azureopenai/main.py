@@ -7,6 +7,7 @@ import aiohttp
 import asyncio
 import json
 import logging
+from openai import AsyncAzureOpenAI
 
 from pydantic import BaseModel
 
@@ -21,11 +22,13 @@ from utils.utils import (
 )
 from config import (
     SRC_LOG_LEVELS,
-    OPENAI_API_BASE_URLS,
-    OPENAI_API_KEYS,
+    AZURE_OPENAI_API_BASE_URLS,
+    AZURE_OPENAI_API_KEYS,
+    AZURE_OPENAI_API_VERSIONS,
+    AZURE_OPENAI_DEPLOYMENT_MODEL_NAMES,
     CACHE_DIR,
-    MODEL_FILTER_ENABLED,
-    MODEL_FILTER_LIST,
+    AZURE_MODEL_FILTER_ENABLED,
+    AZURE_MODEL_FILTER_LIST,
 )
 from typing import List, Optional
 
@@ -45,11 +48,13 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-app.state.MODEL_FILTER_ENABLED = MODEL_FILTER_ENABLED
-app.state.MODEL_FILTER_LIST = MODEL_FILTER_LIST
+app.state.MODEL_FILTER_ENABLED = AZURE_MODEL_FILTER_ENABLED
+app.state.MODEL_FILTER_LIST = AZURE_MODEL_FILTER_LIST
 
-app.state.OPENAI_API_BASE_URLS = OPENAI_API_BASE_URLS
-app.state.OPENAI_API_KEYS = OPENAI_API_KEYS
+app.state.AZURE_OPENAI_API_BASE_URLS = AZURE_OPENAI_API_BASE_URLS
+app.state.AZURE_OPENAI_API_KEYS = AZURE_OPENAI_API_KEYS
+app.state.AZURE_OPENAI_API_VERSIONS = AZURE_OPENAI_API_VERSIONS
+app.state.AZURE_OPENAI_DEPLOYMENT_MODEL_NAMES = AZURE_OPENAI_DEPLOYMENT_MODEL_NAMES
 
 app.state.MODELS = {}
 
@@ -72,35 +77,57 @@ class UrlsUpdateForm(BaseModel):
 class KeysUpdateForm(BaseModel):
     keys: List[str]
 
+class ApiVersionsUpdateForm(BaseModel):
+    apiversions: List[str]
+
+class DeploymentModelNamesUpdateForm(BaseModel):
+    deploymentmodelnames: List[list[str]]
 
 @app.get("/urls")
-async def get_openai_urls(user=Depends(get_admin_user)):
-    return {"OPENAI_API_BASE_URLS": app.state.OPENAI_API_BASE_URLS}
+async def get_azure_openai_urls(user=Depends(get_admin_user)):
+    return {"AZURE_OPENAI_API_BASE_URLS": app.state.AZURE_OPENAI_API_BASE_URLS}
 
 
 @app.post("/urls/update")
-async def update_openai_urls(form_data: UrlsUpdateForm, user=Depends(get_admin_user)):
-    await get_all_models()
-    app.state.OPENAI_API_BASE_URLS = form_data.urls
-    return {"OPENAI_API_BASE_URLS": app.state.OPENAI_API_BASE_URLS}
+async def update_azure_openai_urls(form_data: UrlsUpdateForm, user=Depends(get_admin_user)):
+    app.state.AZURE_OPENAI_API_BASE_URLS = form_data.urls
+    return {"AZURE_OPENAI_API_BASE_URLS": app.state.AZURE_OPENAI_API_BASE_URLS}
 
 
 @app.get("/keys")
-async def get_openai_keys(user=Depends(get_admin_user)):
-    return {"OPENAI_API_KEYS": app.state.OPENAI_API_KEYS}
+async def get_azure_openai_keys(user=Depends(get_admin_user)):
+    return {"AZURE_OPENAI_API_KEYS": app.state.AZURE_OPENAI_API_KEYS}
 
 
 @app.post("/keys/update")
-async def update_openai_key(form_data: KeysUpdateForm, user=Depends(get_admin_user)):
-    app.state.OPENAI_API_KEYS = form_data.keys
-    return {"OPENAI_API_KEYS": app.state.OPENAI_API_KEYS}
+async def update_azure_openai_key(form_data: KeysUpdateForm, user=Depends(get_admin_user)):
+    app.state.AZURE_OPENAI_API_KEYS = form_data.keys
+    return {"AZURE_OPENAI_API_KEYS": app.state.AZURE_OPENAI_API_KEYS}
 
+@app.get("/apiversions")
+async def get_azure_openai_apiversions(user=Depends(get_admin_user)):
+    return {"AZURE_OPENAI_API_VERSIONS": app.state.AZURE_OPENAI_API_VERSIONS}
+
+
+@app.post("/apiversions/update")
+async def update_azure_openai_apiversions(form_data: ApiVersionsUpdateForm, user=Depends(get_admin_user)):
+    app.state.AZURE_OPENAI_API_VERSIONS = form_data.apiversions
+    return {"AZURE_OPENAI_API_VERSIONS": app.state.AZURE_OPENAI_API_VERSIONS}
+
+@app.get("/deploymentmodelnames")
+async def get_azure_openai_deployment_model_names(user=Depends(get_admin_user)):
+    return {"AZURE_OPENAI_DEPLOYMENT_MODEL_NAMES": app.state.AZURE_OPENAI_DEPLOYMENT_MODEL_NAMES}
+
+@app.post("/deploymentmodelnames/update")
+async def update_azure_openai_deployment_model_names(form_data: DeploymentModelNamesUpdateForm, user=Depends(get_admin_user)):
+    app.state.AZURE_OPENAI_DEPLOYMENT_MODEL_NAMES = form_data.deploymentmodelnames
+    return {"AZURE_OPENAI_DEPLOYMENT_MODEL_NAMES": app.state.AZURE_OPENAI_DEPLOYMENT_MODEL_NAMES}
 
 @app.post("/audio/speech")
 async def speech(request: Request, user=Depends(get_verified_user)):
     idx = None
     try:
-        idx = app.state.OPENAI_API_BASE_URLS.index("https://api.openai.com/v1")
+        idx = app.state.AZURE_OPENAI_API_BASE_URLS.index("https://api.openai.com/v1")
         body = await request.body()
         name = hashlib.sha256(body).hexdigest()
 
@@ -158,16 +185,31 @@ async def speech(request: Request, user=Depends(get_verified_user)):
         raise HTTPException(status_code=401, detail=ERROR_MESSAGES.OPENAI_NOT_FOUND)
 
 
-async def fetch_url(url, key):
+# async def fetch_url(url, key):
+#     try:
+#         headers = {"Authorization": f"Bearer {key}"}
+#         async with aiohttp.ClientSession() as session:
+#             async with session.get(url, headers=headers) as response:
+#                 return await response.json()
+#     except Exception as e:
+#         # Handle connection error here
+#         log.error(f"Connection error: {e}")
+#         return None
+async def fetch_url(url_idx):
+    level_models= []
     try:
-        headers = {"Authorization": f"Bearer {key}"}
-        async with aiohttp.ClientSession() as session:
-            async with session.get(url, headers=headers) as response:
-                return await response.json()
+        for model_idx, model_name in enumerate(app.state.AZURE_OPENAI_DEPLOYMENT_MODEL_NAMES[url_idx]):
+            level_model = {}
+            level_model["id"] = model_name
+            level_model["name"] = model_name
+            level_model["model_idx"] = model_idx
+            level_models.append(level_model)
+        return {"data": level_models}
     except Exception as e:
         # Handle connection error here
         log.error(f"Connection error: {e}")
         return None
+
 
 
 def merge_models_lists(model_lists):
@@ -179,7 +221,7 @@ def merge_models_lists(model_lists):
                 [
                     {**model, "urlIdx": idx}
                     for model in models
-                    if "api.openai.com" not in app.state.OPENAI_API_BASE_URLS[idx]
+                    if "openai.com" not in app.state.AZURE_OPENAI_API_BASE_URLS[idx]
                     or "gpt" in model["id"]
                 ]
             )
@@ -188,14 +230,14 @@ def merge_models_lists(model_lists):
 
 
 async def get_all_models():
-    log.info("open ai get_all_models()")
+    log.info("azure openAI get_all_models()")
 
-    if len(app.state.OPENAI_API_KEYS) == 1 and app.state.OPENAI_API_KEYS[0] == "":
+    if len(app.state.AZURE_OPENAI_API_KEYS) == 1 and app.state.AZURE_OPENAI_API_KEYS[0] == "":
         models = {"data": []}
     else:
         tasks = [
-            fetch_url(f"{url}/models", app.state.OPENAI_API_KEYS[idx])
-            for idx, url in enumerate(app.state.OPENAI_API_BASE_URLS)
+            fetch_url(idx)
+            for idx, url in enumerate(app.state.AZURE_OPENAI_API_BASE_URLS)
         ]
 
         responses = await asyncio.gather(*tasks)
@@ -236,16 +278,13 @@ async def get_models(url_idx: Optional[int] = None, user=Depends(get_current_use
                 return models
         return models
     else:
-        url = app.state.OPENAI_API_BASE_URLS[url_idx]
+        url = app.state.AZURE_OPENAI_API_BASE_URLS[url_idx]
 
         r = None
 
         try:
-            r = requests.request(method="GET", url=f"{url}/models")
-            r.raise_for_status()
-
-            response_data = r.json()
-            if "api.openai.com" in url:
+            response_data = fetch_url(url_idx=url_idx)
+            if "openai.com" in url:
                 response_data["data"] = list(
                     filter(lambda model: "gpt" in model["id"], response_data["data"])
                 )
@@ -270,6 +309,7 @@ async def get_models(url_idx: Optional[int] = None, user=Depends(get_current_use
 
 @app.api_route("/{path:path}", methods=["GET", "POST", "PUT", "DELETE"])
 async def proxy(path: str, request: Request, user=Depends(get_verified_user)):
+    log.info(f"Proxying request to {path}")
     idx = 0
 
     body = await request.body()
@@ -278,8 +318,9 @@ async def proxy(path: str, request: Request, user=Depends(get_verified_user)):
     try:
         body = body.decode("utf-8")
         body = json.loads(body)
+        deployment_model_name = body.get("model").strip()
 
-        idx = app.state.MODELS[body.get("model")]["urlIdx"]
+        idx = app.state.MODELS[deployment_model_name]["urlIdx"]
 
         # Check if the model is "gpt-4-vision-preview" and set "max_tokens" to 4000
         # This is a workaround until OpenAI fixes the issue with this model
@@ -300,16 +341,23 @@ async def proxy(path: str, request: Request, user=Depends(get_verified_user)):
     except json.JSONDecodeError as e:
         log.error("Error loading request body into a dictionary:", e)
 
-    url = app.state.OPENAI_API_BASE_URLS[idx]
-    key = app.state.OPENAI_API_KEYS[idx]
+    url = app.state.AZURE_OPENAI_API_BASE_URLS[idx].rstrip("/")
+    key = app.state.AZURE_OPENAI_API_KEYS[idx]
+    api_version = app.state.AZURE_OPENAI_API_VERSIONS[idx]
 
-    target_url = f"{url}/{path}"
+    target_url = f"{url}/openai/deployments/{deployment_model_name}/{path}?api-version={api_version}"
 
     if key == "":
         raise HTTPException(status_code=401, detail=ERROR_MESSAGES.API_KEY_NOT_FOUND)
 
+    # chat_client = AsyncAzureOpenAI(
+    #     api_key=  key,
+    #     api_version= api_version,
+    #     azure_endpoint = url
+    # )
+
     headers = {}
-    headers["Authorization"] = f"Bearer {key}"
+    headers["api-key"] = f"{key}"
     headers["Content-Type"] = "application/json"
 
     r = None
@@ -342,7 +390,7 @@ async def proxy(path: str, request: Request, user=Depends(get_verified_user)):
             try:
                 res = r.json()
                 if "error" in res:
-                    error_detail = f"External: {res['error']['message'] if 'message' in res['error'] else res['error']}"
+                    error_detail = f"External: {res['error']}"
             except:
                 error_detail = f"External: {e}"
 
