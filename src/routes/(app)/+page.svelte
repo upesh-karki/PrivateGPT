@@ -4,6 +4,7 @@
 
 	import { onMount, tick, getContext } from 'svelte';
 	import { goto } from '$app/navigation';
+	import { base } from '$app/paths';
 	import { page } from '$app/stores';
 
 	import {
@@ -109,7 +110,7 @@
 			await cancelOllamaRequest(localStorage.token, currentRequestId);
 			currentRequestId = null;
 		}
-		window.history.replaceState(history.state, '', `/`);
+		window.history.replaceState(history.state, '', `${base}/`);
 		await chatId.set('');
 
 		autoScroll = true;
@@ -512,7 +513,7 @@
 		}
 
 		if (messages.length == 2 && messages.at(1).content !== '') {
-			window.history.replaceState(history.state, '', `/c/${_chatId}`);
+			window.history.replaceState(history.state, '', `${base}/c/${_chatId}`);
 			const _title = await generateChatTitle(userPrompt);
 			await setChatTitle(_chatId, _title);
 		}
@@ -691,7 +692,7 @@
 		}
 
 		if (messages.length == 2) {
-			window.history.replaceState(history.state, '', `/c/${_chatId}`);
+			window.history.replaceState(history.state, '', `${base}/c/${_chatId}`);
 
 			const _title = await generateChatTitle(userPrompt);
 			await setChatTitle(_chatId, _title);
