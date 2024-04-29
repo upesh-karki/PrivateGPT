@@ -27,6 +27,7 @@ import asyncio
 import logging
 from urllib.parse import urlparse
 from typing import Optional, List, Union
+from bs4 import BeautifulSoup
 
 
 from apps.web.models.users import Users
@@ -159,6 +160,23 @@ async def get_all_models():
     app.state.MODELS = {model["model"]: model for model in models["models"]}
 
     return models
+
+
+@app.get("/api/scrape")
+async def scrape_models(url="https://ollama.com/library"):
+    try:
+        response = requests.get(url)
+        response.raise_for_status()
+        soup = BeautifulSoup(response.text, "html.parser")
+        models = [h2.text.strip() for h2 in soup.find_all("h2")]
+
+        return {"models": models}
+    except Exception as e:
+        log.exception(e)
+        raise HTTPException(
+            status_code=500,
+            detail="Error scraping models",
+        )
 
 
 @app.get("/api/tags")
