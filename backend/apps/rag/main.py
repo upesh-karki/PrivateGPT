@@ -85,6 +85,7 @@ from config import (
     RAG_RERANKING_MODEL_TRUST_REMOTE_CODE,
     RAG_OPENAI_API_BASE_URL,
     RAG_OPENAI_API_KEY,
+    RAG_BYPASS_SSL_VERIFY,
     DEVICE_TYPE,
     CHROMA_CLIENT,
     CHUNK_SIZE,
@@ -112,6 +113,7 @@ app.state.RAG_EMBEDDING_ENGINE = RAG_EMBEDDING_ENGINE
 app.state.RAG_EMBEDDING_MODEL = RAG_EMBEDDING_MODEL
 app.state.RAG_RERANKING_MODEL = RAG_RERANKING_MODEL
 app.state.RAG_TEMPLATE = RAG_TEMPLATE
+app.state.RAG_BYPASS_SSL_VERIFY = RAG_BYPASS_SSL_VERIFY
 
 app.state.OPENAI_API_BASE_URL = RAG_OPENAI_API_BASE_URL
 app.state.OPENAI_API_KEY = RAG_OPENAI_API_KEY
@@ -380,6 +382,25 @@ async def update_query_settings(
     }
 
 
+@app.get("/system/settings")
+async def get_system_settings(user=Depends(get_admin_user)):
+    return {
+        "bypassSSLVerify": app.state.RAG_BYPASS_SSL_VERIFY
+    }
+
+class SystemSettingsForm(BaseModel):
+    bypassSSLVerify: Optional[bool] = None
+
+@app.post("/system/settings/update")
+async def update_system_settings(
+        form_data: SystemSettingsForm, user=Depends(get_admin_user)
+):
+    app.state.RAG_BYPASS_SSL_VERIFY = form_data.bypassSSLVerify if form_data.bypassSSLVerify else False
+    return {
+        "bypassSSLVerify": app.state.RAG_BYPASS_SSL_VERIFY
+    }
+
+
 class QueryDocForm(BaseModel):
     collection_name: str
     query: str
@@ -486,6 +507,7 @@ def store_web(form_data: UrlForm, user=Depends(get_current_user)):
     # "https://www.gutenberg.org/files/1727/1727-h/1727-h.htm"
     try:
         loader = get_web_loader(form_data.url)
+        loader.requests_kwargs = {'verify': app.state.RAG_BYPASS_SSL_VERIFY}
         data = loader.load()
 
         collection_name = form_data.collection_name
