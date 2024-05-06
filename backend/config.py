@@ -593,3 +593,22 @@ LITELLM_PROXY_HOST = os.getenv("LITELLM_PROXY_HOST", "127.0.0.1")
 ####################################
 
 DATABASE_URL = os.environ.get("DATABASE_URL", f"sqlite:///{DATA_DIR}/webui.db")
+
+####################################
+# Mail
+####################################
+
+
+ENABLE_MAIL = os.environ.get("ENABLE_MAIL", "False").lower() == "true"
+MAIL_USERNAME = os.environ.get("MAIL_USERNAME", "")
+MAIL_PASSWORD = os.environ.get("MAIL_PASSWORD", "")
+MAIL_FROM = os.environ.get("MAIL_FROM", "")
+MAIL_PORT = int(os.environ.get("MAIL_PORT", "587"))
+MAIL_SERVER = os.environ.get("MAIL_SERVER", "")
+MAIL_FROM_NAME = os.environ.get("MAIL_FROM_NAME", "")
+MAIL_STARTTLS = os.environ.get("MAIL_STARTTLS", "True").lower() == "true"
+MAIL_SSL_TLS = os.environ.get("MAIL_SSL_TLS", "False").lower() == "true"
+MAIL_USE_CREDENTIALS = os.environ.get("MAIL_USE_CREDENTIALS", "True").lower() == "true"
+MAIL_VALIDATE_CERTS = os.environ.get("MAIL_VALIDATE_CERTS", "True").lower() == "true"
+
+FRONTEND_URL = os.environ.get("FRONTEND_URL")
